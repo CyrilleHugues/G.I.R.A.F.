@@ -180,129 +180,129 @@ sub chargement {
 		id => 1,
 		nom => "vert",
 		couleur => "vert",
-		precision => 10,
-		esquive => 7,
-		charisme => 5,
-		armure => 2,
-		points_vie => 1,
-		points_vie_total => 1,
+		precision => 11,
+		esquive => 11,
+		charisme => 11,
+		armure => 3,
+		points_vie => 8,
+		points_vie_total => 8,
 		arme => "Fusil de sniper",
-		puissance => 20,
+		puissance => 25,
 		coups => 1,
 		recharge => 2,
-		munitions => 4
+		munitions => 8
 	};
 	my $haro2 = {
 		id => 2,
 		nom => "bleu",
 		couleur => "bleu_royal",
-		precision => 3,
-		esquive => 1,
-		charisme => 8,
-		armure => 7,
-		points_vie => 13,
-		points_vie_total => 13,
+		precision => 6,
+		esquive => 2,
+		charisme => 4,
+		armure => 5,
+		points_vie => 10,
+		points_vie_total => 10,
 		arme => "Submachine gun",
-		puissance => 12,
+		puissance => 16,
 		coups => 3,
 		recharge => 0,
-		munitions => 18
+		munitions => 30
 	};
 	my $haro3 = {
 		id => 3,
 		nom => "rose",
 		couleur => "rose",
-		precision => 5,
-		esquive => 4,
-		charisme => 8,
-		armure => 5,
+		precision => 8,
+		esquive => 2,
+		charisme => 4,
+		armure => 3,
 		points_vie => 15,
 		points_vie_total => 15,
 		arme => "Desert Eagle",
-		puissance => 15,
+		puissance => 14,
 		coups => 1,
 		recharge => 0,
-		munitions => 12
+		munitions => 30
 	};
 	my $haro4 = {
 		id => 4,
 		nom => "rouge",
 		couleur => "rouge",
-		precision => 7,
-		esquive => 4,
-		charisme => 2,
-		armure => 6,
+		precision => 9,
+		esquive => 2,
+		charisme => 1,
+		armure => 4,
 		points_vie => 12,
 		points_vie_total => 12,
 		arme => "Fusil à deux canons",
 		puissance => 15,
 		coups => 2,
 		recharge => 1,
-		munitions => 8
+		munitions => 30
 	};
 	my $haro5 = {
 		id => 5,
 		nom => "jaune",
 		couleur => "jaune",
 		precision => 10,
-		esquive => 10,
-		charisme => 3,
-		armure => 8,
+		esquive => 3,
+		charisme => 2,
+		armure => 4,
 		points_vie => 12,
 		points_vie_total => 12,
 		arme => "Lance-flammes",
-		puissance => 6,
+		puissance => 9,
 		coups => 1,
 		recharge => 0,
-		munitions => 15
+		munitions => 50
 	};
 	my $haro6 = {
 		id => 6,
 		nom => "violet",
 		couleur => "violet",
-		precision => 6,
+		precision => 9,
 		esquive => 1,
-		charisme => 10,
-		armure => 8,
+		charisme => 5,
+		armure => 3,
 		points_vie => 20,
 		points_vie_total => 20,
 		arme => "Piou-piou",
-		puissance => 8,
+		puissance => 10,
 		coups => 2,
 		recharge => 0,
-		munitions => 20
+		munitions => 40
 	};
       my $haro7 = {
 		id => 7,
 		nom => "orange",
 		couleur => "orange",
-		precision => 5,
-		esquive => 3,
-		charisme => 4,
-		armure => 6,
-		points_vie => 20,
-		points_vie_total => 20,
+		precision => 6,
+		esquive => 4,
+		charisme => 2,
+		armure => 5,
+		points_vie => 14,
+		points_vie_total => 14,
 		arme => "M16",
-		puissance => 15,
+		puissance => 14,
 		coups => 2,
 		recharge => 1,
-		munitions => 18
+		munitions => 30
 	};
 	my $haro8 = {
 		id => 8,
 		nom => "cyan",
 		couleur => "teal",
-		precision => 3,
+		precision => 7,
 		esquive => 1,
-		charisme => 2,
-		armure => 6,
-		points_vie => 20,
-		points_vie_total => 20,
+		charisme => 1,
+		armure => 4,
+		points_vie => 16,
+		points_vie_total => 16,
 		arme => "MG42",
-		puissance => 15,
+		puissance => 14,
 		coups => 3,
 		recharge => 2,
-		munitions => 12
+		munitions => 30
 	};
 
 	if ($ref == 1) { return $haro1;}
@@ -360,23 +360,6 @@ sub taunt {
 
 		return 1;
 	}
-}
-
-sub combat {
-	my ($initiative) = @_;
-
-	# Déroulement du combat
-
-	for( my $i = 1; round($initiative, $i) && ($i != 50); $i++){};
-	# print(sante()."\n");
-
-	if ($_champion->{points_vie} > 0) {
-		return 1;
-	}
-	if ($_challenger->{points_vie} > 0) {
-		return -1;
-	}
-	return 0;
 }
 
 sub debuffs {
