@@ -180,17 +180,17 @@ sub chargement {
 		id => 1,
 		nom => "vert",
 		couleur => "vert",
-		precision => 11,
-		esquive => 11,
-		charisme => 11,
+		precision => 10,
+		esquive => 5,
+		charisme => 10,
 		armure => 3,
-		points_vie => 8,
-		points_vie_total => 8,
+		points_vie => 1,
+		points_vie_total => 1,
 		arme => "Fusil de sniper",
-		puissance => 25,
+		puissance => 20,
 		coups => 1,
 		recharge => 2,
-		munitions => 8
+		munitions => 4
 	};
 	my $haro2 = {
 		id => 2,
@@ -206,7 +206,7 @@ sub chargement {
 		puissance => 16,
 		coups => 3,
 		recharge => 0,
-		munitions => 30
+		munitions => 15
 	};
 	my $haro3 = {
 		id => 3,
@@ -214,7 +214,7 @@ sub chargement {
 		couleur => "rose",
 		precision => 8,
 		esquive => 2,
-		charisme => 4,
+		charisme => 7,
 		armure => 3,
 		points_vie => 15,
 		points_vie_total => 15,
@@ -222,7 +222,7 @@ sub chargement {
 		puissance => 14,
 		coups => 1,
 		recharge => 0,
-		munitions => 30
+		munitions => 10
 	};
 	my $haro4 = {
 		id => 4,
@@ -238,7 +238,7 @@ sub chargement {
 		puissance => 15,
 		coups => 2,
 		recharge => 1,
-		munitions => 30
+		munitions => 16
 	};
 	my $haro5 = {
 		id => 5,
@@ -246,13 +246,13 @@ sub chargement {
 		couleur => "jaune",
 		precision => 10,
 		esquive => 3,
-		charisme => 2,
+		charisme => 10,
 		armure => 4,
 		points_vie => 12,
 		points_vie_total => 12,
 		arme => "Lance-flammes",
-		puissance => 9,
-		coups => 1,
+		puissance => 8,
+		coups => 2,
 		recharge => 0,
 		munitions => 50
 	};
@@ -270,7 +270,7 @@ sub chargement {
 		puissance => 10,
 		coups => 2,
 		recharge => 0,
-		munitions => 40
+		munitions => 20
 	};
       my $haro7 = {
 		id => 7,
