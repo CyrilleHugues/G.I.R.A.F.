@@ -15,9 +15,10 @@ my $_chan = "#harobattle";
 
 my $_match_en_cours;
 my $_paris_ouverts;
-my $_champion;
+my $_champion = 0;
 my $_challenger;
 my $_continuer;
+my $_consecutive_victories = 0;
 
 
 sub init {
@@ -25,14 +26,10 @@ sub init {
 	$_kernel=$ker;
 	$_kernel->post( $irc_session => join => $_chan );
 	Giraf::Trigger::register('public_function','harobattle','harobattle_main',\&harobattle_main,'harobattle.*');
-	# Giraf::Module::register('public_function','harobattle','harobattle_vote',\&harobattle_vote,'[fF][12]\s*');
-	# Giraf::Module::register('on_nick_function','harobattle','harobattle_nick',\&harobattle_nick);
 }
  
 sub unload {
 	Giraf::Trigger::unregister('public_function','harobattle','harobattle_main');
-	# Giraf::Module::unregister('public_function','harobattle','harobattle_vote');
-	# Giraf::Module::unregister('on_nick_function','harobattle','harobattle_nick');
 }
 
 sub harobattle_main {
@@ -53,24 +50,31 @@ sub harobattle_main {
 		else            { push(@return, harobattle_caracs($nick, $dest, $sub_func)); }
 	}
 
-	Giraf::Core::debug("harobattle_main : emit");
- 
 	return @return;
 }
 
 sub harobattle_original {
 	my ($nick, $dest, $args) = @_;
+	my $champion;
 	my @return;
 
-	Giraf::Core::debug("harobattle_launch : args = \"$args\"");
+	Giraf::Core::debug("harobattle_original : args = \"$args\"");
 
 	if ($_match_en_cours) {
+		if (!$_continuer) {
+			$_continuer = 1;
+			push(@return, linemaker("OK, on arrête pas alors, faudrait savoir..."));
+			return @return;
+		}
 		push(@return, linemaker("Un match est déjà en cours, un peu de patience."));
 		return @return;
 	}
 
-	my $champion = int(rand(8) + 1);
-	$_champion = chargement($champion);
+	if (!$_champion) {
+		$champion = int(rand(8) + 1);
+		$_champion = chargement($champion);
+	}
+
 	$_match_en_cours = 1;
 	$_continuer = 1;
 
@@ -338,7 +342,7 @@ sub taunt {
 	if ($de == 12) {
 		# Envoie un message de taunt qui faile violemment
 
-		push(@return, linemaker(nom($haro)." : <insert here a EPIC FAILing taunt>"));
+		push(@return, linemaker(nom($haro)." : MAMAN ! J'ai PEUR !!!"));
 		Giraf::Core::emit(@return);
 
 		$haro->{charisme_fail}++;
@@ -355,7 +359,7 @@ sub taunt {
 	else {
 		# Envoie un message de taunt qui win
 
-		push(@return, linemaker(nom($haro)." : <insert here a winning taunt> !"));
+		push(@return, linemaker(nom($haro)." : Tiens toi tranquille, ça va pas durer longtemps !"));
 		Giraf::Core::emit(@return);
 
 		return 1;
@@ -530,17 +534,22 @@ sub hb_annonce {
 	my ($kernel, $heap, $dest, $delai) = @_[ KERNEL, HEAP, ARG0, ARG1 ];
 	my @return;
 	my $new_delai = $delai - 1;
+	my $line = "Le prochain duel va opposer ".nom($_champion)." et ".nom($_challenger)." dans ".$delai." minute";
 
 	Giraf::Core::debug("hb_annonce");
 
-	push(@return, linemaker("Le prochain duel va opposer ".nom($_champion)." et ".nom($_challenger)." dans ".$delai." minutes."));
 
 	if ($new_delai) {
 		$kernel->delay_set('harobattle_annonce', 60, $dest, $new_delai);
+		$line .= "s.";
 	}
 	else {
 		$kernel->delay_set('harobattle_initiative', 60, $dest);
+		$line .= ".";
 	}
+
+	push(@return, linemaker($line));
+
 	Giraf::Core::emit(@return);
 }
 
@@ -571,21 +580,44 @@ sub hb_round {
 sub hb_atwi {
 	my ($kernel, $heap, $dest) = @_[ KERNEL, HEAP, ARG0 ];
 	my @return;
+	my $line;
 
 	Giraf::Core::debug("hb_atwi");
 
 	push(@return, linemaker(sante()));
 
 	if (($_champion->{munitions} == 0) && ($_challenger->{munitions} == 0) && ($_champion->{points_vie} > 0) && ($_challenger->{points_vie} >0)) {
-		push(@return, linemaker("Match nul ! Le champion ".nom($_champion)." conserve son titre."));
+		push(@return, linemaker("Plus de munitions ! Le champion ".nom($_champion)." conserve son titre."));
 		$_champion = chargement($_champion->{id});
 	}
 	elsif ($_champion->{points_vie} > 0) {
-		push(@return, linemaker("Bravo à ".nom($_champion).", qui conserve son titre de champion."));
+		$_consecutive_victories++;
+		$line = "Une ovation pour ".nom($_champion).", qui conserve son titre de champion. ".$_consecutive_victories." victoire";
+
+		if ($_consecutive_victories > 1) {
+			$line .= "s consécutives.";
+		}
+		else {
+			$line .= " pour le moment.";
+		}
+		
+		push(@return, linemaker($line));
+
 		$_champion = chargement($_champion->{id});
 	}
 	elsif ($_challenger->{points_vie} > 0) {
-		push(@return, linemaker("Bravo à ".nom($_challenger).", le nouveau champion, ".nom($_champion)." est humilié."));
+		$line = "On applaudit tous ".nom($_challenger)." qui vient d'humilier ".nom($_champion);
+
+		if ($_consecutive_victories > 1) {
+			$line .= " après ses ".$_consecutive_victories." victoires consécutives.";
+		}
+		else {
+			$line .= ".";
+		}
+
+		push(@return, linemaker($line));
+
+		$_consecutive_victories = 1;
 		$_champion = chargement($_challenger->{id});
 	}
 	else {
