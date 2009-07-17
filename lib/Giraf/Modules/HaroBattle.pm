@@ -13,17 +13,30 @@ use POE;
 our $_kernel;
 my $_chan = "#harobattle";
 
+# Match and bet controls
 my $_match_en_cours;
+my $_continuer;
 my $_paris_ouverts;
+
+# The haros
 my $_champion = 0;
 my $_challenger;
-my $_continuer;
+
+# Statistics about the haros
 my $_consecutive_victories = 0;
 
+# Database stuff
+my $_tbl_haro = "Haros"; # Haros table, contains everything there is to know about the haros
+my $_dbh=Giraf::Admin::get_dbh(); # GIFAR database
 
 sub init {
 	my ($ker,$irc_session) = @_;
 	$_kernel=$ker;
+
+	#$_dbh->do("BEGIN TRANSACTION;");
+	#$_dbh->do("CREATE TABLE IF NOT EXISTS tmp ("); # *** TODO ****
+	#$_dbh->do("COMMIT;");
+
 	$_kernel->post( $irc_session => join => $_chan );
 	Giraf::Trigger::register('public_function','harobattle','harobattle_main',\&harobattle_main,'harobattle.*');
 }
@@ -44,10 +57,9 @@ sub harobattle_main {
 	Giraf::Core::debug("harobattle_main : sub_func = \"$sub_func\"");
 
 	switch ($sub_func) {
-		case 'help'     { push(@return, harobattle_help($nick, $dest, $args)); }
 		case 'original' { push(@return, harobattle_original($nick, $dest, $args)); }
 		case 'stop'     { push(@return, harobattle_stop($nick, $dest, $args)); }
-		else            { push(@return, harobattle_caracs($nick, $dest, $sub_func)); }
+		else            { push(@return, harobattle_help($nick, $dest, $sub_func)); }
 	}
 
 	return @return;
@@ -83,7 +95,7 @@ sub harobattle_original {
 	return @return;
 }
 
-sub harobattle_caracs {
+sub harobattle_help {
 	my ($nick, $dest, $sub_func) = @_;
 	my @return;
 
@@ -318,6 +330,9 @@ sub chargement {
 	if ($ref == 7) { return $haro7;}
 	if ($ref == 7) { return $haro7;}
 	if ($ref == 8) { return $haro8;}
+
+	$_dbh
+
 }
 
 sub initiative {
