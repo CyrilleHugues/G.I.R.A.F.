@@ -58,6 +58,7 @@ sub harobattle_main {
 
 	switch ($sub_func) {
 		case 'original' { push(@return, harobattle_original($nick, $dest, $args)); }
+		case 'bet'      { push(@return, harobattle_bet($nick, $dest, $args)); }
 		case 'stop'     { push(@return, harobattle_stop($nick, $dest, $args)); }
 		else            { push(@return, harobattle_help($nick, $dest, $sub_func)); }
 	}
@@ -95,11 +96,24 @@ sub harobattle_original {
 	return @return;
 }
 
+sub harobattle_bet {
+	my ($nick, $dest, $args) = @_;
+	my @return;
+
+	Giraf::Core::debug("harobattle_bet : args = \"$args\"");
+
+	my $uuid = Giraf::User::getUUID($nick);
+
+	push(@return, linemaker("UUID : $uuid"));
+
+	return @return;
+}
+
 sub harobattle_help {
 	my ($nick, $dest, $sub_func) = @_;
 	my @return;
 
-	Giraf::Core::debug("harobattle_caracs : args = \"$sub_func\"");
+	Giraf::Core::debug("harobattle_help : args = \"$sub_func\"");
 
 	push(@return, linemaker("http://giraf.gentilboulet.info/harobattle/"));
 	return @return;
