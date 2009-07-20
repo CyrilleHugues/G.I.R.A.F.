@@ -1,4 +1,4 @@
-package Giraf::Modules::HaroBattle;
+ï»¿package Giraf::Modules::HaroBattle;
 
 use strict;
 
@@ -12,6 +12,7 @@ use POE;
 # Private vars
 our $_kernel;
 my $_chan = "#harobattle";
+my $_help_url = "http://giraf.gentilboulet.info/harobattle/";
 
 # Match and bet controls
 my $_match_en_cours;
@@ -75,10 +76,10 @@ sub harobattle_original {
 	if ($_match_en_cours) {
 		if (!$_continuer) {
 			$_continuer = 1;
-			push(@return, linemaker("OK, on arrête pas alors, faudrait savoir..."));
+			push(@return, linemaker("OK, on arrÃªte pas alors, faudrait savoir..."));
 			return @return;
 		}
-		push(@return, linemaker("Un match est déjà en cours, un peu de patience."));
+		push(@return, linemaker("Un match est dÃ©jÃ  en cours, un peu de patience."));
 		return @return;
 	}
 
@@ -109,18 +110,21 @@ sub harobattle_bet {
 	my $bet = $3;
 
 	if (!$_bets->{$uuid}) {
-		push(@return, linemaker("Un compte pour $uuid vient d'être créé."));
-		$_bets->{$uuid}->{wealth} = 100;
+		$uuid =~ m/(.*){.*}/;
+		my $name = $1;
+		push(@return, linemaker("Un compte pour $name vient d'Ãªtre crÃ©Ã©. La banque vous offre 20."));
+		$_bets->{$uuid}->{wealth} = 20;
+		$_bets->{$uuid}->{result} = -1;
 	}
 
 	if ($result eq "wealth") {
 		push (@return, linemaker("Vous avez une fortune de ".$_bets->{$uuid}->{wealth}."."));
 	}
 	elsif (!$_paris_ouverts) {
-		push (@return, linemaker("Les paris sont fermés pour le moment, attendez l'annonce d'un match."));
+		push (@return, linemaker("Les paris sont fermÃ©s pour le moment, attendez l'annonce d'un match."));
 	}
-	elsif ($_bets->{$uuid}->{bet}) {
-		push (@return, linemaker("Vous avez déjà parié pour ce match."));
+	elsif ($_bets->{$uuid}->{result} != -1) {
+		push (@return, linemaker("Vous avez dÃ©jÃ  pariÃ© pour ce match."));
 	}
 	elsif ($bet > $_bets->{$uuid}->{wealth}) {
 		push (@return, linemaker("Vous n'avez pas assez d'argent pour parier cette somme."));
@@ -130,10 +134,10 @@ sub harobattle_bet {
 	}
 	else {
 		if ($result eq $_champion->{nom}) {
-			$_bets->{$uuid}->{result} = 1;
+			$_bets->{$uuid}->{result} = $_champion->{id};
 		}
 		elsif ($result eq $_challenger->{nom}) {
-			$_bets->{$uuid}->{result} = -1;
+			$_bets->{$uuid}->{result} = $_challenger->{id};
 		}
 		elsif ($result eq "draw") {
 			$_bets->{$uuid}->{result} = 0;
@@ -147,7 +151,7 @@ sub harobattle_bet {
 		$_bets->{$uuid}->{wealth} -= $bet;
 		$_pot += $bet;
 
-		push (@return, linemaker("Votre pari de $bet a été enregistré."));
+		push (@return, linemaker("Votre pari de $bet a Ã©tÃ© enregistrÃ©."));
 	}
 	return @return;
 }
@@ -158,7 +162,7 @@ sub harobattle_help {
 
 	Giraf::Core::debug("harobattle_help : args = \"$sub_func\"");
 
-	push(@return, linemaker("http://giraf.gentilboulet.info/harobattle/"));
+	push(@return, linemaker($_help_url));
 	return @return;
 }
 
@@ -169,7 +173,7 @@ sub harobattle_stop {
 	Giraf::Core::debug("harobattle_stop : args = \"$args\"");
 
 	if($_continuer) {
-		push(@return, linemaker("OK, on arrête après le prochain duel."));
+		push(@return, linemaker("OK, on arrÃªte aprÃ¨s le prochain duel."));
 	}
 
 	$_continuer = 0;
@@ -193,7 +197,7 @@ sub nom {
 }
 
 sub sante {
-	# Renvoie la barre de santé des haros
+	# Renvoie la barre de santÃ© des haros
 
 	my $scale = ceil((18 * $_champion->{points_vie}) / $_champion->{points_vie_total});
 
@@ -247,7 +251,7 @@ sub sante {
 
 sub chargement {
 	my ($ref) = @_;
-	# Charge un haro à partir de la base de données
+	# Charge un haro Ã  partir de la base de donnÃ©es
 
 	my $haro1 = {
 		id => 1,
@@ -275,7 +279,7 @@ sub chargement {
 		armure => 5,
 		points_vie => 10,
 		points_vie_total => 10,
-		arme => "Submachine gun",
+		arme => "L4z0r PewPew",
 		puissance => 16,
 		coups => 3,
 		recharge => 0,
@@ -307,7 +311,7 @@ sub chargement {
 		armure => 4,
 		points_vie => 12,
 		points_vie_total => 12,
-		arme => "Fusil à deux canons",
+		arme => "Fusil Ã  deux canons",
 		puissance => 15,
 		coups => 2,
 		recharge => 1,
@@ -339,7 +343,7 @@ sub chargement {
 		armure => 3,
 		points_vie => 20,
 		points_vie_total => 20,
-		arme => "Piou-piou",
+		arme => "Submachine Gun",
 		puissance => 10,
 		coups => 2,
 		recharge => 0,
@@ -431,7 +435,7 @@ sub taunt {
 	else {
 		# Envoie un message de taunt qui win
 
-		push(@return, linemaker(nom($haro)." : Tiens toi tranquille, ça va pas durer longtemps !"));
+		push(@return, linemaker(nom($haro)." : Tiens toi tranquille, Ã§a va pas durer longtemps !"));
 		Giraf::Core::emit(@return);
 
 		return 1;
@@ -460,7 +464,7 @@ sub round {
 
 	my @return;
 
-	# Déroulement d'un round
+	# DÃ©roulement d'un round
 	push(@return, linemaker("Round ".$i));
 	push(@return, linemaker(sante()));
 
@@ -483,14 +487,14 @@ sub round {
 		push(@return, attaque($_champion, $_challenger, $k));
 	}
 	else {
-		push(@return, linemaker(nom($_champion)." n'as pas encore compris que le match avait commencé."));
+		push(@return, linemaker(nom($_champion)." n'as pas encore compris que le match avait commencÃ©."));
 	}
 
 	if ($i > $initiative) {
 		push(@return, attaque($_challenger, $_champion, $l));
 	}
 	else {
-		push(@return, linemaker(nom($_challenger)." n'as pas encore compris que le match avait commencé."));
+		push(@return, linemaker(nom($_challenger)." n'as pas encore compris que le match avait commencÃ©."));
 	}
 
 	Giraf::Core::emit(@return);
@@ -508,7 +512,7 @@ sub attaque {
 	if ((($i - 1) % ($haro1->{recharge} + 1)) || (!$haro1->{munitions})) {
 		if(taunt($haro1) == 1) {
 			$haro2->{precision_fail}++;
-			push(@return, linemaker(nom($haro2)." semble destabilisé"));
+			push(@return, linemaker(nom($haro2)." semble destabilisÃ©"));
 		}
 	}
 	else {
@@ -524,17 +528,17 @@ sub attaque {
 			if ($de1 == 12) {
 				$haro1->{charisme_fail}++;
 				if ($de2 == 12) {
-					push(@return, linemaker(nom($haro1)." et ".nom($haro2)." trébuchent tous les deux comme des n[c=rouge]00[/c]bs !"));
+					push(@return, linemaker(nom($haro1)." et ".nom($haro2)." trÃ©buchent tous les deux comme des n[c=rouge]00[/c]bs !"));
 				}
 				else {
-					push(@return, linemaker(nom($haro1)." trébuche comme un n[c=rouge]00[/c]b !"));
+					push(@return, linemaker(nom($haro1)." trÃ©buche comme un n[c=rouge]00[/c]b !"));
 				}
 			}
 			elsif ($de1 > $haro1->{precision}) {
 				push(@return, linemaker(nom($haro1)." tire avec son ".$haro1->{arme}." et rate."));
 				if ($de2 == 12) {
 					$haro2->{charisme_fail}++;
-					push(@return, linemaker(nom($haro2)." se casse la figure et se prends quand même le coup, le n[c=rouge]00[/c]b ! ".($haro1->{puissance} - $armure)." dégats infligés."));
+					push(@return, linemaker(nom($haro2)." se casse la figure et se prends quand mÃªme le coup, le n[c=rouge]00[/c]b ! ".($haro1->{puissance} - $armure)." dÃ©gats infligÃ©s."));
 					$haro2->{points_vie} -= ($haro1->{puissance} - $armure);
 				}
 			}
@@ -542,11 +546,11 @@ sub attaque {
 				my $chaine = nom($haro1)." tire avec son ".$haro1->{arme};
 				if ($de2 == 12) {
 					$haro2->{charisme_fail}++;
-					push(@return, linemaker($chaine.", ".nom($haro2)." glisse et perds son armure (comme un n[c=rouge]00[/c]b) : ".$haro1->{puissance}." dégats infligés."));
+					push(@return, linemaker($chaine.", ".nom($haro2)." glisse et perds son armure (comme un n[c=rouge]00[/c]b) : ".$haro1->{puissance}." dÃ©gats infligÃ©s."));
 					$haro2->{points_vie} -= $haro1->{puissance};
 				}
 				elsif ($de2 > $haro2->{esquive}) {
-					push(@return, linemaker($chaine." et inflige ".($haro1->{puissance} - $armure)." dégats à ".nom($haro2)."."));
+					push(@return, linemaker($chaine." et inflige ".($haro1->{puissance} - $armure)." dÃ©gats Ã  ".nom($haro2)."."));
 					$haro2->{points_vie} -= ($haro1->{puissance} - $armure);
 				}
 				else {
@@ -558,6 +562,67 @@ sub attaque {
 	}
 	return @return;
 }
+
+sub bet_results {
+	my ($winner_id) = @_;
+	my ($win_bets, $winner, $win, $pot_minus);
+	my @return;
+
+	if ($winner_id) {
+		$winner = chargement($winner_id);
+		$win = nom($winner);
+	}
+	else {
+		$win = "le match nul";
+	}
+
+	foreach my $i (keys %$_bets) {
+		if ($_bets->{$i}->{result} == $winner_id) {
+			$win_bets += $_bets->{$i}->{bet};
+		}
+	}
+
+	if ($win_bets) {
+		push(@return, linemaker("RÃ©sultats des paris : il fallait parier pour $win, mise totale gagnante : $win_bets."));
+	}
+	else {
+		push(@return, linemaker("RÃ©sultats des paris : il fallait parier pour $win, bande de n[c=rouge]00[/c]baX."));
+	}
+
+	foreach my $i (keys %$_bets) {
+		$i =~ m/(.*){.*}/;
+		my $user = $1;
+		if ($_bets->{$i}->{result} == $winner_id) {
+
+			my $quantity = int($_pot * $_bets->{$i}->{bet} / $win_bets);
+
+			$pot_minus += $quantity;
+
+			push(@return, linemaker("$user (+".($quantity - $_bets->{$i}->{bet}).", mise ".$_bets->{$i}->{bet}.")"));
+
+			$_bets->{$i}->{wealth} += $quantity;
+		}
+		elsif ($_bets->{$i}->{result} > -1) {
+			push(@return, linemaker("$user (-".$_bets->{$i}->{bet}.")"));
+		}
+
+		if ($_bets->{$i}->{wealth} < 5) {
+			$_bets->{$i}->{wealth}++;
+		}
+
+		$_bets->{$i}->{result} = -1;
+		$_bets->{$i}->{bet} = 0;
+	}
+
+	$_pot -= $pot_minus;
+
+	if ($_pot) {
+		push(@return, linemaker("Il reste $_pot dans le pot."));
+	}
+
+	return @return;
+}
+	
 
 ######## ##     ## ######## ##    ## ########    ##     ##    ###    ##    ## ########  ##       ######## ########   ######  
 ##       ##     ## ##       ###   ##    ##       ##     ##   ## ##   ###   ## ##     ## ##       ##       ##     ## ##    ## 
@@ -612,11 +677,11 @@ sub hb_annonce {
 
 
 	if ($new_delai) {
-		$kernel->delay_set('harobattle_annonce', 2, $dest, $new_delai);
+		$kernel->delay_set('harobattle_annonce', 60, $dest, $new_delai);
 		$line .= "s.";
 	}
 	else {
-		$kernel->delay_set('harobattle_initiative', 2, $dest, $line .= ".");
+		$kernel->delay_set('harobattle_initiative', 60, $dest, $line .= ".");
 	}
 
 	push(@return, linemaker($line));
@@ -630,7 +695,7 @@ sub hb_initiative {
 
 	Giraf::Core::debug("hb_initiative");
 
-	push (@return, linemaker("Les paris sont fermés."));
+	push (@return, linemaker("Les paris sont fermÃ©s."));
 	Giraf::Core::emit(@return);
 
 	$_paris_ouverts = 0;
@@ -663,25 +728,17 @@ sub hb_atwi {
 
 	if (($_champion->{munitions} == 0) && ($_challenger->{munitions} == 0) && ($_champion->{points_vie} > 0) && ($_challenger->{points_vie} >0)) {
 		push(@return, linemaker("Plus de munitions ! Le champion ".nom($_champion)." conserve son titre."));
-		$_champion = chargement($_champion->{id});
 
-		foreach my $i (keys %$_bets) {
-			if ($_bets->{$i}->{result} == 0) {
-				push(@return, linemaker("$i gagne $_pot"));
-				$_bets->{$i}->{wealth} += $_pot;
-			}
-			else {
-				push(@return, linemaker("$i a perdu"));
-			}
-			$_bets->{$i}->{bet} = 0;
-		}
+		push(@return, bet_results(0));
+
+		$_champion = chargement($_champion->{id});
 	}
 	elsif ($_champion->{points_vie} > 0) {
 		$_consecutive_victories++;
 		$line = "Une ovation pour ".nom($_champion).", qui conserve son titre de champion. ".$_consecutive_victories." victoire";
 
 		if ($_consecutive_victories > 1) {
-			$line .= "s consécutives.";
+			$line .= "s consÃ©cutives.";
 		}
 		else {
 			$line .= " pour le moment.";
@@ -689,24 +746,15 @@ sub hb_atwi {
 		
 		push(@return, linemaker($line));
 
-		$_champion = chargement($_champion->{id});
+		push(@return, bet_results($_champion->{id}));
 
-		foreach my $i (keys %$_bets) {
-			if ($_bets->{$i}->{result} == 1) {
-				push(@return, linemaker("$i gagne $_pot"));
-				$_bets->{$i}->{wealth} += $_pot;
-			}
-			else {
-				push(@return, linemaker("$i a perdu"));
-			}
-			$_bets->{$i}->{bet} = 0;
-		}
+		$_champion = chargement($_champion->{id});
 	}
 	elsif ($_challenger->{points_vie} > 0) {
 		$line = "On applaudit tous ".nom($_challenger)." qui vient d'humilier ".nom($_champion);
 
 		if ($_consecutive_victories > 1) {
-			$line .= " après ses ".$_consecutive_victories." victoires consécutives.";
+			$line .= " aprÃ¨s ses ".$_consecutive_victories." victoires consÃ©cutives.";
 		}
 		else {
 			$line .= ".";
@@ -714,34 +762,17 @@ sub hb_atwi {
 
 		push(@return, linemaker($line));
 
+		push(@return, bet_results($_challenger->{id}));
+
 		$_consecutive_victories = 1;
 		$_champion = chargement($_challenger->{id});
-
-		foreach my $i (keys %$_bets) {
-			if ($_bets->{$i}->{result} == -1) {
-				push(@return, linemaker("$i gagne $_pot"));
-				$_bets->{$i}->{wealth} += $_pot;
-			}
-			else {
-				push(@return, linemaker("$i a perdu"));
-			}
-			$_bets->{$i}->{bet} = 0;
-		}
 	}
 	else {
 		push(@return, linemaker("Match nul ! Le champion ".nom($_champion)." conserve son titre."));
-		$_champion = chargement($_champion->{id});
 
-		foreach my $i (keys %$_bets) {
-			if ($_bets->{$i}->{result} == 0) {
-				push(@return, linemaker("$i gagne $_pot"));
-				$_bets->{$i}->{wealth} += $_pot;
-			}
-			else {
-				push(@return, linemaker("$i a perdu"));
-			}
-			$_bets->{$i}->{bet} = 0;
-		}
+		push(@return, bet_results(0));
+
+		$_champion = chargement($_champion->{id});
 	}
 
 	if($_continuer) {
@@ -749,11 +780,9 @@ sub hb_atwi {
 		$kernel->delay_set('harobattle_original', 60, $dest);
 	}
 	else {
-		push(@return, linemaker("C'est tout pour le moment, rendez-vous très bientôt."));
+		push(@return, linemaker("C'est tout pour le moment, rendez-vous trÃ¨s bientÃ´t."));
 		$_match_en_cours = 0;
 	}
-
-	$_pot = 0;
 
 	Giraf::Core::emit(@return);
 }
