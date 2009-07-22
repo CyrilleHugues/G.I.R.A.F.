@@ -20,6 +20,7 @@ my $_continuer;
 my $_paris_ouverts;
 my $_bets;
 my $_pot;
+my $_reward;
 
 # The haros
 my $_champion = 0;
@@ -29,8 +30,9 @@ my $_challenger;
 my $_consecutive_victories = 0;
 
 # Database stuff
-my $_tbl_haro = "mod_haros"; # Haros table, contains everything there is to know about the haros
-my $_tbl_betters = "mod_betters"; # Betters table, contains wealth and uuid of the betters
+my $_tbl_haro = "mod_harobattle_haros"; # Haros table, contains everything there is to know about the haros
+my $_tbl_betters = "mod_harobattle_betters"; # Betters table, contains wealth and uuid of the betters
+my $_tbl_data = "mod_harobattle_data"; # Data table, contains the current champion id and his consecutive victories
 my $_dbh = Giraf::Admin::get_dbh(); # GIFAR database
 
 sub init {
@@ -68,7 +70,6 @@ sub harobattle_main {
 
 sub harobattle_original {
 	my ($nick, $dest, $args) = @_;
-	my $champion;
 	my @return;
 
 	Giraf::Core::debug("harobattle_original : args = \"$args\"");
@@ -83,10 +84,15 @@ sub harobattle_original {
 		return @return;
 	}
 
-	if (!$_champion) {
+	my $champion = get("champion_id");
+	$_pot = get("pot");
+	$_reward = get("reward");
+	$_consecutive_victories = get("consecutive_victories");
+
+	if (!$champion) {
 		$champion = int(rand(8) + 1);
-		$_champion = chargement($champion);
 	}
+	$_champion = chargement($champion);
 
 	$_match_en_cours = 1;
 	$_continuer = 1;
@@ -104,7 +110,7 @@ sub harobattle_bet {
 
 	my $uuid = Giraf::User::getUUID($nick);
 
-	$args =~ m/^(.+?)(\s+([0-9]+))?\s*$/;
+	$args =~ m/^(.+?)(\s+([0-9]+))?.*?$/;
 
 	my $result = $1;
 	my $bet = $3;
@@ -181,6 +187,25 @@ sub harobattle_stop {
 	return @return;
 }
 
+sub get {
+	my ($key) = @_;
+	my $value;
+
+	my $sth = $_dbh->prepare("SELECT value FROM $_tbl_data WHERE key=?");
+	$sth->bind_columns(\$value);
+	$sth->execute($key);
+	$sth->fetch();
+
+	return $value;
+}
+
+sub set {
+	my ($key, $value) = @_;
+
+	my $sth = $_dbh->prepare("UPDATE $_tbl_data SET value=? WHERE key=?"); 
+	$sth->execute($value, $key);
+}
+
 sub linemaker {
 	my ($texte) = @_;
 
@@ -251,148 +276,21 @@ sub sante {
 
 sub chargement {
 	my ($ref) = @_;
-	# Charge un haro à partir de la base de données
+	# Load a haro from the database
 
-	my $haro1 = {
-		id => 1,
-		nom => "vert",
-		couleur => "vert",
-		precision => 10,
-		esquive => 5,
-		charisme => 10,
-		armure => 3,
-		points_vie => 1,
-		points_vie_total => 1,
-		arme => "Fusil de sniper",
-		puissance => 20,
-		coups => 1,
-		recharge => 2,
-		munitions => 4
-	};
-	my $haro2 = {
-		id => 2,
-		nom => "bleu",
-		couleur => "bleu_royal",
-		precision => 6,
-		esquive => 2,
-		charisme => 4,
-		armure => 5,
-		points_vie => 10,
-		points_vie_total => 10,
-		arme => "L4z0r PewPew",
-		puissance => 16,
-		coups => 3,
-		recharge => 0,
-		munitions => 15
-	};
-	my $haro3 = {
-		id => 3,
-		nom => "rose",
-		couleur => "rose",
-		precision => 8,
-		esquive => 2,
-		charisme => 7,
-		armure => 3,
-		points_vie => 15,
-		points_vie_total => 15,
-		arme => "Desert Eagle",
-		puissance => 14,
-		coups => 1,
-		recharge => 0,
-		munitions => 10
-	};
-	my $haro4 = {
-		id => 4,
-		nom => "rouge",
-		couleur => "rouge",
-		precision => 9,
-		esquive => 2,
-		charisme => 1,
-		armure => 4,
-		points_vie => 12,
-		points_vie_total => 12,
-		arme => "Fusil à deux canons",
-		puissance => 15,
-		coups => 2,
-		recharge => 1,
-		munitions => 16
-	};
-	my $haro5 = {
-		id => 5,
-		nom => "jaune",
-		couleur => "jaune",
-		precision => 10,
-		esquive => 3,
-		charisme => 10,
-		armure => 4,
-		points_vie => 12,
-		points_vie_total => 12,
-		arme => "Lance-flammes",
-		puissance => 8,
-		coups => 2,
-		recharge => 0,
-		munitions => 50
-	};
-	my $haro6 = {
-		id => 6,
-		nom => "violet",
-		couleur => "violet",
-		precision => 9,
-		esquive => 1,
-		charisme => 5,
-		armure => 3,
-		points_vie => 20,
-		points_vie_total => 20,
-		arme => "Submachine Gun",
-		puissance => 10,
-		coups => 2,
-		recharge => 0,
-		munitions => 20
-	};
-      my $haro7 = {
-		id => 7,
-		nom => "orange",
-		couleur => "orange",
-		precision => 6,
-		esquive => 4,
-		charisme => 2,
-		armure => 5,
-		points_vie => 14,
-		points_vie_total => 14,
-		arme => "M16",
-		puissance => 14,
-		coups => 2,
-		recharge => 1,
-		munitions => 30
-	};
-	my $haro8 = {
-		id => 8,
-		nom => "cyan",
-		couleur => "teal",
-		precision => 7,
-		esquive => 1,
-		charisme => 1,
-		armure => 4,
-		points_vie => 16,
-		points_vie_total => 16,
-		arme => "MG42",
-		puissance => 14,
-		coups => 3,
-		recharge => 2,
-		munitions => 30
-	};
+	my $sth = $_dbh->prepare("SELECT * FROM $_tbl_haro WHERE id=?");
+	my $haro;
+	$sth->bind_columns(\$haro->{id}, \$haro->{nom}, \$haro->{couleur}, \$haro->{precision}, \$haro->{esquive}, \$haro->{charisme}, \$haro->{armure}, \$haro->{points_vie}, \$haro->{arme}, \$haro->{puissance}, \$haro->{coups}, \$haro->{recharge}, \$haro->{munitions});
+	$sth->execute($ref);
 
-	if ($ref == 1) { return $haro1;}
-	if ($ref == 2) { return $haro2;}
-	if ($ref == 3) { return $haro3;}
-	if ($ref == 4) { return $haro4;}
-	if ($ref == 5) { return $haro5;}
-	if ($ref == 6) { return $haro6;}
-	if ($ref == 7) { return $haro7;}
-	if ($ref == 7) { return $haro7;}
-	if ($ref == 8) { return $haro8;}
-
-	$_dbh
+	if ($sth->fetch()) {
+		$haro->{points_vie_total} = $haro->{points_vie};
+		$haro->{charisme_fail} = 0;
+		$haro->{precision_fail} = 0;
+		return $haro;
+	}
+	else {
+	}
 
 }
 
@@ -584,6 +482,12 @@ sub bet_results {
 
 	if ($win_bets) {
 		push(@return, linemaker("Résultats des paris : il fallait parier pour $win, mise totale gagnante : $win_bets."));
+
+		if ($winner_id == $_challenger->{id}) {
+			push(@return, linemaker("La banque offre $_reward aux parieurs téméraires ayant soutenu ".nom($_challenger)."."));
+			$_pot += $_reward;
+			$_reward = 1;
+		}
 	}
 	else {
 		push(@return, linemaker("Résultats des paris : il fallait parier pour $win, bande de n[c=rouge]00[/c]baX."));
@@ -748,6 +652,8 @@ sub hb_atwi {
 
 		push(@return, bet_results($_champion->{id}));
 
+		$_reward += $_consecutive_victories;
+
 		$_champion = chargement($_champion->{id});
 	}
 	elsif ($_challenger->{points_vie} > 0) {
@@ -780,6 +686,11 @@ sub hb_atwi {
 		$kernel->delay_set('harobattle_original', 60, $dest);
 	}
 	else {
+		set("champion_id", $_champion->{id});
+		set("pot", $_pot);
+		set("consecutive_victories", $_consecutive_victories);
+		set("reward", $_reward);
+
 		push(@return, linemaker("C'est tout pour le moment, rendez-vous très bientôt."));
 		$_match_en_cours = 0;
 	}
