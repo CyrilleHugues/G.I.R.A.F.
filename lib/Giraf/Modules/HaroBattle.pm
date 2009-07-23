@@ -12,7 +12,7 @@ use POE;
 # Private vars
 our $_kernel;
 my $_chan = "#harobattle";
-my $_help_url = "http://giraf.gentilboulet.info/harobattle/";
+my $_help_url = "http://giraf.gentilboulet.info/harobattle.php";
 
 # Match and bet controls
 my $_match_en_cours;
@@ -23,7 +23,8 @@ my $_pot;
 my $_reward;
 
 # The haros
-my $_champion = 0;
+my $_nb_haros = 8;
+my $_champion;
 my $_challenger;
 
 # Statistics about the haros
@@ -38,8 +39,8 @@ my $_dbh = Giraf::Admin::get_dbh(); # GIFAR database
 sub init {
 	my ($ker,$irc_session) = @_;
 	$_kernel=$ker;
-	$_kernel->post( $irc_session => join => $_chan );
 	Giraf::Chan->join($_chan);
+	get_betters();
 	Giraf::Trigger::register('public_function','harobattle','harobattle_main',\&harobattle_main,'harobattle.*');
 }
  
@@ -61,6 +62,7 @@ sub harobattle_main {
 	switch ($sub_func) {
 		case 'original' { push(@return, harobattle_original($nick, $dest, $args)); }
 		case 'bet'      { push(@return, harobattle_bet($nick, $dest, $args)); }
+		case 'root'     { push(@return, harobattle_root($nick, $dest, $args)); }
 		case 'stop'     { push(@return, harobattle_stop($nick, $dest, $args)); }
 		else            { push(@return, harobattle_help($nick, $dest, $sub_func)); }
 	}
@@ -89,13 +91,10 @@ sub harobattle_original {
 	$_reward = get("reward");
 	$_consecutive_victories = get("consecutive_victories");
 
-	if (!$champion) {
-		$champion = int(rand(8) + 1);
-	}
 	$_champion = chargement($champion);
 
 	$_match_en_cours = 1;
-	$_continuer = 1;
+	$_continuer = 5;
 
 	$_kernel->post('harobattle_core', 'harobattle_original', $dest, 1);
 
@@ -110,7 +109,7 @@ sub harobattle_bet {
 
 	my $uuid = Giraf::User::getUUID($nick);
 
-	$args =~ m/^(.+?)(\s+([0-9]+))?.*?$/;
+	$args =~ m/^(.+?)(\s+([0-9]+))(.*?)$/;
 
 	my $result = $1;
 	my $bet = $3;
@@ -121,9 +120,10 @@ sub harobattle_bet {
 		push(@return, linemaker("Un compte pour $name vient d'être créé. La banque vous offre 20."));
 		$_bets->{$uuid}->{wealth} = 20;
 		$_bets->{$uuid}->{result} = -1;
+		$_bets->{$uuid}->{colour} = "";
 	}
 
-	if ($result eq "wealth") {
+	if ($args eq "") {
 		push (@return, linemaker("Vous avez une fortune de ".$_bets->{$uuid}->{wealth}."."));
 	}
 	elsif (!$_paris_ouverts) {
@@ -172,6 +172,44 @@ sub harobattle_help {
 	return @return;
 }
 
+sub harobattle_root {
+	my ($nick, $dest, $args) = @_;
+	my $haro;
+	my $not_found = 1;
+	my $uuid = Giraf::User::getUUID($nick);
+	my @return;
+
+	Giraf::Core::debug("harobattle_root : args = \"$args\"");
+
+	if (!$_bets->{$uuid}) {
+		push(@return, linemaker("Vous n'avez pas encore de compte."));
+		return @return;
+	}
+
+	if ($_bets->{$uuid}->{wealth} < 50) {
+		push(@return, linemaker("Soutenir un haro coûte 50, vous n'avez pas assez d'argent."));
+		return @return;
+	}
+
+	for (my $i = 1; ($i <= $_nb_haros) && $not_found; $i++) {
+		$haro = chargement($i);
+		if ($args eq $haro->{nom}) {
+			$_bets->{$uuid}->{colour} = $haro->{couleur};
+			$_bets->{$uuid}->{wealth} -= 50;
+			$not_found = 0;
+		}
+	}
+
+	if ($not_found) {
+		push(@return, linemaker("$args n'est pas un haro existant."));
+	}
+	else {
+		push(@return, linemaker("Vous soutenez maintenant ".nom($haro)."."));
+	}
+
+	return @return;
+}
+
 sub harobattle_stop {
 	my ($nick, $dest, $args) = @_;
 	my @return;
@@ -185,6 +223,30 @@ sub harobattle_stop {
 	$_continuer = 0;
 
 	return @return;
+}
+
+sub get_betters {
+	my $sth = $_dbh->prepare("SELECT * FROM $_tbl_betters");
+	my ($uuid, $wealth, $colour);
+	$sth->bind_columns(\$uuid, \$wealth, \$colour);
+	$sth->execute();
+
+	while ($sth->fetch()) {
+		$_bets->{$uuid} = {
+			"wealth" => $wealth,
+			"colour" => $colour,
+			"result" => -1
+		}
+	}
+}
+ 
+
+sub set_betters {
+	my $sth = $_dbh->prepare("INSERT OR REPLACE INTO $_tbl_betters (uuid, wealth, colour) VALUES (?, ?, ?)");
+
+	foreach my $i (keys %$_bets) {
+		$sth->execute($i, $_bets->{$i}->{wealth}, $_bets->{$i}->{colour});
+	}
 }
 
 sub get {
@@ -463,7 +525,7 @@ sub attaque {
 
 sub bet_results {
 	my ($winner_id) = @_;
-	my ($win_bets, $winner, $win, $pot_minus);
+	my ($win_bets, $winner, $win, $pot_minus, $counter);
 	my @return;
 
 	if ($winner_id) {
@@ -486,11 +548,14 @@ sub bet_results {
 		if ($winner_id == $_challenger->{id}) {
 			push(@return, linemaker("La banque offre $_reward aux parieurs téméraires ayant soutenu ".nom($_challenger)."."));
 			$_pot += $_reward;
-			$_reward = 1;
 		}
 	}
 	else {
 		push(@return, linemaker("Résultats des paris : il fallait parier pour $win, bande de n[c=rouge]00[/c]baX."));
+	}
+
+	if ($winner_id == $_challenger->{id}) {
+		$_reward = 1;
 	}
 
 	foreach my $i (keys %$_bets) {
@@ -502,12 +567,14 @@ sub bet_results {
 
 			$pot_minus += $quantity;
 
-			push(@return, linemaker("$user (+".($quantity - $_bets->{$i}->{bet}).", mise ".$_bets->{$i}->{bet}.")"));
+			push(@return, linemaker("[c=".$_bets->{$i}->{colour}."]$user\[/c] (+".($quantity - $_bets->{$i}->{bet}).", mise ".$_bets->{$i}->{bet}.")"));
 
 			$_bets->{$i}->{wealth} += $quantity;
+			$counter++;
 		}
 		elsif ($_bets->{$i}->{result} > -1) {
-			push(@return, linemaker("$user (-".$_bets->{$i}->{bet}.")"));
+			push(@return, linemaker("[c=".$_bets->{$i}->{colour}."]$user\[/c] (-".$_bets->{$i}->{bet}.")"));
+			$counter++;
 		}
 
 		if ($_bets->{$i}->{wealth} < 5) {
@@ -516,6 +583,13 @@ sub bet_results {
 
 		$_bets->{$i}->{result} = -1;
 		$_bets->{$i}->{bet} = 0;
+	}
+
+	if (!$counter) {
+		$_continuer--;
+	}
+	else {
+		$_continuer = 5;
 	}
 
 	$_pot -= $pot_minus;
@@ -550,7 +624,7 @@ sub hb_original {
 
 	Giraf::Core::debug("hb_original");
 
-	my $challenger = int(rand(7) + 1);
+	my $challenger = int(rand($_nb_haros - 1) + 1);
 
 	if($challenger >= $_champion->{id}) {
 		$challenger++;
@@ -690,6 +764,7 @@ sub hb_atwi {
 		set("pot", $_pot);
 		set("consecutive_victories", $_consecutive_victories);
 		set("reward", $_reward);
+		set_betters();
 
 		push(@return, linemaker("C'est tout pour le moment, rendez-vous très bientôt."));
 		$_match_en_cours = 0;

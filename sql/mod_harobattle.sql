@@ -2,8 +2,8 @@
 DROP TABLE IF EXISTS mod_harobattle_haros;
 DROP TABLE IF EXISTS mod_harobattle_betters;
 DROP TABLE IF EXISTS mod_harobattle_data;
-CREATE TABLE mod_harobattle_haros (id INTEGER PRIMARY KEY, name TEXT UNIQUE, color TEXT, precision INTEGER, dodge INTEGER, charisma INTEGER, armor INTEGER, hit_points INTEGER, weapon TEXT, power INTEGER, rouds_per_round INTEGER, time_to_reload INTEGER, rounds INTEGER);
-CREATE TABLE mod_harobattle_betters (uuid TEXT PRIMARY KEY, wealth INTEGER);
+CREATE TABLE mod_harobattle_haros (id INTEGER PRIMARY KEY, name TEXT UNIQUE, colour TEXT, precision INTEGER, dodge INTEGER, charisma INTEGER, armor INTEGER, hit_points INTEGER, weapon TEXT, power INTEGER, rouds_per_round INTEGER, time_to_reload INTEGER, rounds INTEGER);
+CREATE TABLE mod_harobattle_betters (uuid TEXT PRIMARY KEY, wealth INTEGER, colour TEXT);
 CREATE TABLE mod_harobattle_data (key TEXT PRIMARY KEY, value TEXT);
 INSERT INTO mod_harobattle_haros VALUES(1, 'vert',   'vert',   10, 5, 10, 3,  1, 'Fusil de sniper',     20, 1, 2,  4);
 INSERT INTO mod_harobattle_haros VALUES(2, 'bleu',   'bleu',    6, 2, 4,  5, 10, 'L4z0r PewPew',        16, 3, 0, 15);
