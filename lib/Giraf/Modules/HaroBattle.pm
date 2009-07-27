@@ -755,17 +755,17 @@ sub hb_atwi {
 		$_champion = chargement($_champion->{id});
 	}
 
+	set("champion_id", $_champion->{id});
+	set("pot", $_pot);
+	set("consecutive_victories", $_consecutive_victories);
+	set("reward", $_reward);
+	set_betters();
+
 	if($_continuer) {
 		push(@return, linemaker("Prochain match dans 1 minute."));
 		$kernel->delay_set('harobattle_original', 60, $dest);
 	}
 	else {
-		set("champion_id", $_champion->{id});
-		set("pot", $_pot);
-		set("consecutive_victories", $_consecutive_victories);
-		set("reward", $_reward);
-		set_betters();
-
 		push(@return, linemaker("C'est tout pour le moment, rendez-vous très bientôt."));
 		$_match_en_cours = 0;
 	}
