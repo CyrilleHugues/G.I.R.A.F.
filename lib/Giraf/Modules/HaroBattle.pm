@@ -42,12 +42,11 @@ sub init {
 	Giraf::Core::debug("HAROBATTLE INIT");
 	Giraf::Chan::join($_chan);
 	get_betters();
-	Giraf::Trigger::register('public_function','harobattle','harobattle_main',\&harobattle_main,'harobattle|hb');
-#	Giraf::Trigger::register('public_function','harobattle','hb_main',\&harobattle_main,'hb');
+	Giraf::Trigger::register('public_function','HaroBattle','harobattle_main',\&harobattle_main,'(harobattle|hb)');
 }
  
 sub unload {
-	Giraf::Trigger::unregister('public_function','harobattle','harobattle_main');
+	Giraf::Trigger::unregister('public_function','HaroBattle','harobattle_main');
 }
 
 sub harobattle_main {
@@ -111,27 +110,42 @@ sub harobattle_bet {
 
 	my $uuid = Giraf::User::getUUID($nick);
 
-	$args =~ m/^(.+?)(\s+([0-9]+))(.*?)$/;
-
-	my $result = $1;
-	my $bet = $3;
-
+	my @tmp = split(/\s+/, $args);
+	my $command = $tmp[0];
+	my $bet = $tmp[1];
 	if (!$_bets->{$uuid}) {
 		my $name = Giraf::User::getNickFromUUID($uuid);
-		push(@return, linemaker("Un compte pour $name vient d'être créé. La banque vous offre 20."));
+		push(@return, linemaker("Un compte pour $name vient d'ÎáÎéÎõtre créé. La banque vous offre 20."));
 		$_bets->{$uuid}->{wealth} = 20;
 		$_bets->{$uuid}->{result} = -1;
 		$_bets->{$uuid}->{colour} = "";
 	}
-
-	if ($args eq "") {
+	if (@tmp == 0 || $command eq "wealth" ) {
 		push (@return, linemaker("Vous avez une fortune de ".$_bets->{$uuid}->{wealth}."."));
 	}
 	elsif (!$_paris_ouverts) {
 		push (@return, linemaker("Les paris sont fermés pour le moment, attendez l'annonce d'un match."));
 	}
+	elsif ($command eq "raise") {
+		if ($bet > $_bets->{$uuid}->{wealth}) {
+			push (@return, linemaker("Vous n'avez pas assez d'argent pour parier cette somme."));
+		}
+		elsif ($bet == 0) {
+			push (@return, linemaker("Vous ne pouvez pas parier 0."));
+		}
+		elsif ($_bets->{$uuid}->{result} == -1) {
+			push (@return, linemaker("Commencez par parier pour un résultat !"));
+		}
+		else
+		{
+			$_bets->{$uuid}->{bet} += $bet;
+			$_bets->{$uuid}->{wealth} -= $bet;
+			$_pot += $bet;
+			push (@return, linemaker("Votre pari a été augmenté de $bet pour un total de $_bets->{$uuid}->{bet}."));
+		}
+	}
 	elsif ($_bets->{$uuid}->{result} != -1) {
-		push (@return, linemaker("Vous avez déjà parié pour ce match."));
+		push (@return, linemaker("Vous avez déjà parié pour ce match, augmentez votre mise avec !harobattle bet raise"));
 	}
 	elsif ($bet > $_bets->{$uuid}->{wealth}) {
 		push (@return, linemaker("Vous n'avez pas assez d'argent pour parier cette somme."));
@@ -140,24 +154,22 @@ sub harobattle_bet {
 		push (@return, linemaker("Vous ne pouvez pas parier 0."));
 	}
 	else {
-		if ($result eq $_champion->{nom}) {
+		if ($command eq $_champion->{nom}) {
 			$_bets->{$uuid}->{result} = $_champion->{id};
 		}
-		elsif ($result eq $_challenger->{nom}) {
+		elsif ($command eq $_challenger->{nom}) {
 			$_bets->{$uuid}->{result} = $_challenger->{id};
 		}
-		elsif ($result eq "draw") {
+		elsif ($command eq "draw") {
 			$_bets->{$uuid}->{result} = 0;
 		}
 		else {
-			push (@return, linemaker("Mais n'importe quoi, vous n'avez pas le droit de parier pour $result"));
+			push (@return, linemaker("Mais n'importe quoi, vous n'avez pas le droit de parier pour $command"));
 			return @return;
 		}
-
 		$_bets->{$uuid}->{bet} = $bet;
 		$_bets->{$uuid}->{wealth} -= $bet;
 		$_pot += $bet;
-
 		push (@return, linemaker("Votre pari de $bet a été enregistré."));
 	}
 	return @return;
@@ -588,7 +600,7 @@ sub bet_results {
 	if (!$counter) {
 		$_continuer--;
 	}
-	else {
+	elsif ($_continuer) {
 		$_continuer = 5;
 	}
 
@@ -773,18 +785,25 @@ sub hb_atwi {
 	Giraf::Core::emit(@return);
 }
 
-POE::Session->create(
-	inline_states => {
-		_start => \&Giraf::Modules::HaroBattle::hb_init,
-		_stop => \&Giraf::Modules::HaroBattle::hb_stop,
-		harobattle_original => \&Giraf::Modules::HaroBattle::hb_original,
-		harobattle_championnat => \&Giraf::Modules::HaroBattle::hb_championnat,
-		harobattle_annonce => \&Giraf::Modules::HaroBattle::hb_annonce,
-		harobattle_initiative => \&Giraf::Modules::HaroBattle::hb_initiative,
-		harobattle_round => \&Giraf::Modules::HaroBattle::hb_round,
-		harobattle_atwi => \&Giraf::Modules::HaroBattle::hb_atwi,
-	},
-);
+#sub launch_session {
+#	if (!$_session_launched) {
+#		$_session_launched=1;
+		POE::Session->create(
+			inline_states => {
+				_start => \&Giraf::Modules::HaroBattle::hb_init,
+				_stop => \&Giraf::Modules::HaroBattle::hb_stop,
+				harobattle_original => \&Giraf::Modules::HaroBattle::hb_original,
+				harobattle_championnat => \&Giraf::Modules::HaroBattle::hb_championnat,
+				harobattle_annonce => \&Giraf::Modules::HaroBattle::hb_annonce,
+				harobattle_initiative => \&Giraf::Modules::HaroBattle::hb_initiative,
+				harobattle_round => \&Giraf::Modules::HaroBattle::hb_round,
+				harobattle_atwi => \&Giraf::Modules::HaroBattle::hb_atwi,
+				harobattle_new_events => \&Giraf::Modules::CallVote::new_events,
+				harobattle_clean_events => \&Giraf::Modules::CallVote::clean_events
+			},
+		);
+#	}
+#}
 
 1;
 
