@@ -12,7 +12,7 @@ use POE;
 # Private vars
 our $_kernel;
 my $_chan = "#harobattle";
-my $_help_url = "http://giraf.gentilboulet.info/harobattle.php";
+my $_help_url = "http://giraf.gentilboulet.info/fr/modules/harobattle.php";
 
 # Match and bet controls
 my $_match_en_cours;
@@ -39,9 +39,11 @@ my $_dbh = Giraf::Admin::get_dbh(); # GIFAR database
 sub init {
 	my ($ker,$irc_session) = @_;
 	$_kernel=$ker;
-	Giraf::Chan->join($_chan);
+	Giraf::Core::debug("HAROBATTLE INIT");
+	Giraf::Chan::join($_chan);
 	get_betters();
-	Giraf::Trigger::register('public_function','harobattle','harobattle_main',\&harobattle_main,'harobattle.*');
+	Giraf::Trigger::register('public_function','harobattle','harobattle_main',\&harobattle_main,'harobattle|hb');
+#	Giraf::Trigger::register('public_function','harobattle','hb_main',\&harobattle_main,'hb');
 }
  
 sub unload {
@@ -52,7 +54,7 @@ sub harobattle_main {
 	my ($nick, $dest, $what) = @_;
 	my @return;
 	my ($sub_func, $args);
-	$what =~ m/^harobattle(\s+(.+?))?(\s+(.+))?$/;
+	$what =~ m/^((.+?))?(\s+(.+))?$/;
 
 	$sub_func = $2;
 	$args = $4;
@@ -115,8 +117,7 @@ sub harobattle_bet {
 	my $bet = $3;
 
 	if (!$_bets->{$uuid}) {
-		$uuid =~ m/(.*){.*}/;
-		my $name = $1;
+		my $name = Giraf::User::getNickFromUUID($uuid);
 		push(@return, linemaker("Un compte pour $name vient d'être créé. La banque vous offre 20."));
 		$_bets->{$uuid}->{wealth} = 20;
 		$_bets->{$uuid}->{result} = -1;
@@ -559,8 +560,7 @@ sub bet_results {
 	}
 
 	foreach my $i (keys %$_bets) {
-		$i =~ m/(.*){.*}/;
-		my $user = $1;
+		my $user = Giraf::User::getNickFromUUID($i);
 		if ($_bets->{$i}->{result} == $winner_id) {
 
 			my $quantity = int($_pot * $_bets->{$i}->{bet} / $win_bets);
