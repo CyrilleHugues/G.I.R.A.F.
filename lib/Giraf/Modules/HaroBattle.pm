@@ -23,7 +23,7 @@ my $_pot;
 my $_reward;
 
 # The haros
-my $_nb_haros = 8;
+my $_nb_haros;
 my $_champion;
 my $_challenger;
 
@@ -34,15 +34,22 @@ my $_consecutive_victories = 0;
 my $_tbl_haro = "mod_harobattle_haros"; # Haros table, contains everything there is to know about the haros
 my $_tbl_betters = "mod_harobattle_betters"; # Betters table, contains wealth and uuid of the betters
 my $_tbl_data = "mod_harobattle_data"; # Data table, contains the current champion id and his consecutive victories
-my $_dbh = Giraf::Admin::get_dbh(); # GIFAR database
+my $_dbh = Giraf::Admin::get_dbh(); # GIRAF database
 
 sub init {
 	my ($ker,$irc_session) = @_;
 	$_kernel=$ker;
 	Giraf::Core::debug("HAROBATTLE INIT");
 	Giraf::Chan::join($_chan);
+
+	my $sth=$_dbh->prepare("SELECT COUNT(*) FROM $_tbl_haro");
+	$sth->bind_columns(\$_nb_haros);
+	$sth->execute();
+	$sth->fetch();
+
 	get_betters();
 	Giraf::Trigger::register('public_function','HaroBattle','harobattle_main',\&harobattle_main,'(harobattle|hb)');
+	Giraf::Trigger::register('on_uuid_change_function','HaroBattle','harobattle_uuid_change',\&harobattle_uuid_change);
 }
  
 sub unload {
@@ -69,6 +76,12 @@ sub harobattle_main {
 	}
 
 	return @return;
+}
+
+sub harobattle_uuid_change {
+	my ($args) = @_;
+
+	Giraf::Core::debug("harobattle_uuid_change : args = \"$args\"");
 }
 
 sub harobattle_original {
@@ -109,49 +122,111 @@ sub harobattle_bet {
 	Giraf::Core::debug("harobattle_bet : args = \"$args\"");
 
 	my $uuid = Giraf::User::getUUID($nick);
+	my $name = Giraf::User::getNickFromUUID($uuid);
 
 	my @tmp = split(/\s+/, $args);
 	my $command = $tmp[0];
 	my $bet = $tmp[1];
+
 	if (!$_bets->{$uuid}) {
-		my $name = Giraf::User::getNickFromUUID($uuid);
-		push(@return, linemaker("Un compte pour $name vient d'ÎáÎéÎõtre créé. La banque vous offre 20."));
+		push(@return, linemaker("Un compte pour $name vient d'être créé. La banque vous offre 20."));
 		$_bets->{$uuid}->{wealth} = 20;
 		$_bets->{$uuid}->{result} = -1;
 		$_bets->{$uuid}->{colour} = "";
 	}
-	if (@tmp == 0 || $command eq "wealth" ) {
-		push (@return, linemaker("Vous avez une fortune de ".$_bets->{$uuid}->{wealth}."."));
+
+	$name = "[c=".$_bets->{$uuid}->{colour}."]$name\[/c]";
+
+	if (@tmp == 0 && $_paris_ouverts) {
+		my ($pot_champion, $pot_challenger, $pot_draw, $n_champion, $n_challenger, $n_draw) = (0, 0, 0, 0, 0, 0);
+
+		foreach my $i (keys %$_bets) {
+			if ($_bets->{$i}->{result} == $_champion->{id}) {
+				$pot_champion += $_bets->{$i}->{bet};
+				$n_champion++;
+			}
+			elsif ($_bets->{$i}->{result} == $_challenger->{id}) {
+				$pot_challenger += $_bets->{$i}->{bet};
+				$n_challenger++;
+			}
+			elsif (!$_bets->{$i}->{result}) {
+				$pot_draw += $_bets->{$i}->{bet};
+				$n_draw++;
+			}
+		}
+
+		my $line = "Paris en cours : [c=".$_champion->{couleur}."]$pot_champion ($n_champion parieur";
+
+		if ($n_champion > 1) {
+			$line .= "s";
+		}
+
+		$line .= ")[/c] / $pot_draw ($n_draw parieur";
+
+		if ($n_draw > 1) {
+			$line .= "s";
+		}
+
+		$line .= ") / [c=".$_challenger->{couleur}."]$pot_challenger ($n_challenger parieur";
+
+		if ($n_challenger > 1) {
+			$line .= "s";
+		}
+
+		$line .= ")[/c] Total : $_pot (".($n_champion + $n_challenger + $n_draw)." parieur";
+
+		if ($n_champion + $n_draw + $n_challenger > 1) {
+			$line .= "s";
+		}
+
+		$line .= ")";
+
+		push(@return, linemaker($line));
+	}
+	elsif ($command eq "status" ) {
+		my $line = "$name a une fortune de ".$_bets->{$uuid}->{wealth};
+
+		if ($_bets->{$uuid}->{result} == 0) {
+			$line .= " et a parié ".$_bets->{$uuid}->{bet}." sur le match nul.";
+		}
+		elsif ($_bets->{$uuid}->{result} != -1) {
+			$line .= " et a parié ".$_bets->{$uuid}->{bet}." sur ".nom(chargement($_bets->{$uuid}->{result})).".";
+		}
+		else {
+			$line .= ".";
+		}
+
+		push (@return, linemaker($line));
 	}
 	elsif (!$_paris_ouverts) {
 		push (@return, linemaker("Les paris sont fermés pour le moment, attendez l'annonce d'un match."));
 	}
 	elsif ($command eq "raise") {
-		if ($bet > $_bets->{$uuid}->{wealth}) {
-			push (@return, linemaker("Vous n'avez pas assez d'argent pour parier cette somme."));
+		if ($bet !~ /^[0-9]*[1-9][0-9]*$/) {
+			push (@return, linemaker("$name essaie de tricher en pariant $bet, ça n'est pas un pari valide."));
 		}
-		elsif ($bet == 0) {
-			push (@return, linemaker("Vous ne pouvez pas parier 0."));
+		elsif ($bet > $_bets->{$uuid}->{wealth}) {
+			push (@return, linemaker("$name essaie de tricher en remontant son pari de plus qu'il n'a."));
 		}
 		elsif ($_bets->{$uuid}->{result} == -1) {
-			push (@return, linemaker("Commencez par parier pour un résultat !"));
+			push (@return, linemaker("$name : on ne peut pas monter son enchère si l'on a pas encore commencé à parier..."));
 		}
 		else
 		{
 			$_bets->{$uuid}->{bet} += $bet;
 			$_bets->{$uuid}->{wealth} -= $bet;
 			$_pot += $bet;
-			push (@return, linemaker("Votre pari a été augmenté de $bet pour un total de $_bets->{$uuid}->{bet}."));
+			push (@return, linemaker("$name augmente son pari de $bet pour un total de $_bets->{$uuid}->{bet}."));
 		}
 	}
 	elsif ($_bets->{$uuid}->{result} != -1) {
-		push (@return, linemaker("Vous avez déjà parié pour ce match, augmentez votre mise avec !harobattle bet raise"));
+		push (@return, linemaker("$name essaie de tricher en pariant une deuxième fois (!harobattle bet raise <somme> pour surenchérir)."));
+	}
+	elsif ($bet !~ /^[0-9]*[1-9][0-9]*$/) {
+		push (@return, linemaker("$name essaie de tricher en pariant $bet, ça n'est pas un pari valide."));
 	}
 	elsif ($bet > $_bets->{$uuid}->{wealth}) {
-		push (@return, linemaker("Vous n'avez pas assez d'argent pour parier cette somme."));
-	}
-	elsif ($bet == 0) {
-		push (@return, linemaker("Vous ne pouvez pas parier 0."));
+		push (@return, linemaker("$name essaie de tricher, il n'as pas assez d'argent pour parier $bet."));
 	}
 	else {
 		if ($command eq $_champion->{nom}) {
@@ -164,13 +239,13 @@ sub harobattle_bet {
 			$_bets->{$uuid}->{result} = 0;
 		}
 		else {
-			push (@return, linemaker("Mais n'importe quoi, vous n'avez pas le droit de parier pour $command"));
+			push (@return, linemaker("Mais n'importe quoi, $name, je ne comprends pas ce que vous dites"));
 			return @return;
 		}
 		$_bets->{$uuid}->{bet} = $bet;
 		$_bets->{$uuid}->{wealth} -= $bet;
 		$_pot += $bet;
-		push (@return, linemaker("Votre pari de $bet a été enregistré."));
+		push (@return, linemaker("$name vient de parier $bet."));
 	}
 	return @return;
 }
@@ -485,7 +560,8 @@ sub attaque {
 	if ((($i - 1) % ($haro1->{recharge} + 1)) || (!$haro1->{munitions})) {
 		if(taunt($haro1) == 1) {
 			$haro2->{precision_fail}++;
-			push(@return, linemaker(nom($haro2)." semble destabilisé"));
+			push(@return, linemaker(nom($haro2)." semble destabilisé."));
+			push(@return, linemaker(nom($haro1)." recharge."));
 		}
 	}
 	else {
@@ -597,7 +673,7 @@ sub bet_results {
 		$_bets->{$i}->{bet} = 0;
 	}
 
-	if (!$counter) {
+	if (!$counter && $_continuer) {
 		$_continuer--;
 	}
 	elsif ($_continuer) {
@@ -607,7 +683,7 @@ sub bet_results {
 	$_pot -= $pot_minus;
 
 	if ($_pot) {
-		push(@return, linemaker("Il reste $_pot dans le pot."));
+		push(@return, linemaker("Il reste $_pot dans le pot. ".int($_pot / 3)." sont prélevés par la banque. Il reste ".($_pot -= int($_pot / 3))." dans le pot."));
 	}
 
 	return @return;
@@ -685,7 +761,9 @@ sub hb_initiative {
 
 	Giraf::Core::debug("hb_initiative");
 
+	push (@return, harobattle_bet());
 	push (@return, linemaker("Les paris sont fermés."));
+
 	Giraf::Core::emit(@return);
 
 	$_paris_ouverts = 0;
