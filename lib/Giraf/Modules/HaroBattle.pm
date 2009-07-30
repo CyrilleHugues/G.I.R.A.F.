@@ -86,18 +86,18 @@ sub harobattle_uuid_change {
 
 	if ($_bets->{$uuid_new}) {
 		if ($_bets->{$uuid}) {
-			if (($bets->{$uuid}->{wealth} + $bets->{$uuid}->{bet}) > ($bets->{$uuid_new}->{wealth} + $bets->{$uuid_new}->{bet})) {
+			if (($_bets->{$uuid}->{wealth} + $_bets->{$uuid}->{bet}) > ($_bets->{$uuid_new}->{wealth} + $_bets->{$uuid_new}->{bet})) {
 				$_pot -= $_bets->{$uuid_new}->{bet};
 				$_bets->{$uuid_new} = $_bets->{$uuid};
 
-				my $name = "[color=".$_bets->{$uuid_new}->{colour}."]".Giraf::User::getNickFromUUID($uuid_new)."[/c]";
+				my $name = "[color=".$_bets->{$uuid_new}->{colour}."]".Giraf::User::getNickFromUUID($uuid)."[/c]";
 				push(@return, linemaker("$name est maintenant enregistré, il garde son compte."));
 			}
 			else {
 				$_pot -= $_bets->{$uuid}->{bet};
 
-				my $name = "[color=".$_bets->{$uuid_new}->{colour}."]".Giraf::User::getNickFromUUID($uuid_new)."[/c]";
-				push(@return, linemaker("$name est maintenant enregistré, [color=red]attention, il change de compte, et ce qu'il avait parié à ce tour ci est retiré du pot.[/c]"));
+				my $name = "[color=".$_bets->{$uuid_new}->{colour}."]".Giraf::User::getNickFromUUID($uuid)."[/c]";
+				push(@return, linemaker("$name est maintenant enregistré, [color=red]attention, il change de compte[/c], et ce qu'il avait parié à ce tour ci est retiré du pot."));
 			}
 			delete($_bets->{$uuid});
 		}
@@ -118,7 +118,7 @@ sub harobattle_original {
 
 	if ($_match_en_cours) {
 		if (!$_continuer) {
-			$_continuer = 1;
+			$_continuer = 5;
 			push(@return, linemaker("OK, on arrête pas alors, faudrait savoir..."));
 			return @return;
 		}
@@ -143,25 +143,28 @@ sub harobattle_original {
 
 sub harobattle_bet {
 	my ($nick, $dest, $args) = @_;
-	my @return;
+	my ($uuid, $name, $command, $bet);
+	my (@return, @tmp);
 
 	Giraf::Core::debug("harobattle_bet : args = \"$args\"");
 
-	my $uuid = Giraf::User::getUUID($nick);
-	my $name = Giraf::User::getNickFromUUID($uuid);
+	if ($nick) {
+		$uuid = Giraf::User::getUUID($nick);
+		$name = Giraf::User::getNickFromUUID($uuid);
 
-	my @tmp = split(/\s+/, $args);
-	my $command = $tmp[0];
-	my $bet = $tmp[1];
+		@tmp = split(/\s+/, $args);
+		$command = $tmp[0];
+		$bet = $tmp[1];
 
-	if (!$_bets->{$uuid}) {
-		push(@return, linemaker("Un compte pour $name vient d'être créé. La banque vous offre 20."));
-		$_bets->{$uuid}->{wealth} = 20;
-		$_bets->{$uuid}->{result} = -1;
-		$_bets->{$uuid}->{colour} = "";
+		if ($uuid && !$_bets->{$uuid}) {
+			push(@return, linemaker("Un compte pour $name vient d'être créé. La banque vous offre 20."));
+			$_bets->{$uuid}->{wealth} = 20;
+			$_bets->{$uuid}->{result} = -1;
+			$_bets->{$uuid}->{colour} = "";
+		}
+
+		$name = "[c=".$_bets->{$uuid}->{colour}."]$name\[/c]";
 	}
-
-	$name = "[c=".$_bets->{$uuid}->{colour}."]$name\[/c]";
 
 	if (@tmp == 0 && $_paris_ouverts) {
 		my ($pot_champion, $pot_challenger, $pot_draw, $n_champion, $n_challenger, $n_draw) = (0, 0, 0, 0, 0, 0);
@@ -709,7 +712,10 @@ sub bet_results {
 	$_pot -= $pot_minus;
 
 	if ($_pot) {
-		push(@return, linemaker("Il reste $_pot dans le pot. ".int($_pot / 3)." sont prélevés par la banque. Il reste ".($_pot -= int($_pot / 3))." dans le pot."));
+		push(@return, linemaker("Il reste $_pot dans le pot."));
+		if ($_pot > 2) {
+			push(@return, linemaker(int($_pot / 3)." sont prélevés par la banque. Il reste ".($_pot -= int($_pot / 3))." dans le pot."));
+		}
 	}
 
 	return @return;
