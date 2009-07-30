@@ -79,9 +79,35 @@ sub harobattle_main {
 }
 
 sub harobattle_uuid_change {
-	my ($args) = @_;
+	my ($uuid, $uuid_new) = @_;
+	my @return;
 
-	Giraf::Core::debug("harobattle_uuid_change : args = \"$args\"");
+	Giraf::Core::debug("harobattle_uuid_change : $uuid => $uuid_new");
+
+	if ($_bets->{$uuid_new}) {
+		if ($_bets->{$uuid}) {
+			if (($bets->{$uuid}->{wealth} + $bets->{$uuid}->{bet}) > ($bets->{$uuid_new}->{wealth} + $bets->{$uuid_new}->{bet})) {
+				$_pot -= $_bets->{$uuid_new}->{bet};
+				$_bets->{$uuid_new} = $_bets->{$uuid};
+
+				my $name = "[color=".$_bets->{$uuid_new}->{colour}."]".Giraf::User::getNickFromUUID($uuid_new)."[/c]";
+				push(@return, linemaker("$name est maintenant enregistré, il garde son compte."));
+			}
+			else {
+				$_pot -= $_bets->{$uuid}->{bet};
+
+				my $name = "[color=".$_bets->{$uuid_new}->{colour}."]".Giraf::User::getNickFromUUID($uuid_new)."[/c]";
+				push(@return, linemaker("$name est maintenant enregistré, [color=red]attention, il change de compte, et ce qu'il avait parié à ce tour ci est retiré du pot.[/c]"));
+			}
+			delete($_bets->{$uuid});
+		}
+	}
+	else {
+		$_bets->{$uuid_new} = $_bets->{$uuid};
+		delete($_bets->{$uuid});
+	}
+
+	return @return;
 }
 
 sub harobattle_original {

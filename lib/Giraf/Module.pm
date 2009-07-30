@@ -13,7 +13,7 @@ use Giraf::Trigger;
 use DBI;
 use Switch;
 use LWP::UserAgent;
-use XML::LibXML;
+# use XML::LibXML;
 
 # Public vars
 
@@ -40,7 +40,7 @@ sub mod_run {
 	my $version;
 	Giraf::Core::debug("Giraf::Module::mod_run($mod)");
 	eval ('$version='.'$Giraf::Modules::' . $mod . '::version;');
-	set_version($mod,$version);
+	# set_version($mod,$version);
 	eval ('$ret = ' . '&Giraf::Modules::' . $mod . '::' . $fn . '(@args);');
 	return $ret;
 }
@@ -659,11 +659,11 @@ sub add_module {
 	$sth->execute($name,$autorun);
 }
 
-sub set_version {
-	my ($name,$version) = @_;
-	my $sth=$_dbh->prepare("UPDATE $_tbl_modules SET version=? WHERE name LIKE ?");
-	return $sth->execute($version,$name);
-}
+# sub set_version {
+#	my ($name,$version) = @_;
+#	my $sth=$_dbh->prepare("UPDATE $_tbl_modules SET version=? WHERE name LIKE ?");
+#	return $sth->execute($version,$name);
+# }
 
 sub module_loaded {
 	my ($mod) =@_;
