@@ -55,6 +55,7 @@ sub init {
  
 sub unload {
 	Giraf::Trigger::unregister('public_function','HaroBattle','harobattle_main');
+	Giraf::Trigger::unregister('on_uuid_change_function','HaroBattle','harobattle_uuid_change');
 }
 
 sub harobattle_main {
@@ -74,6 +75,7 @@ sub harobattle_main {
 		case 'status'   { push(@return, harobattle_bet($nick, $dest, "status")); }
 		case 'root'     { push(@return, harobattle_root($nick, $dest, $args)); }
 		case 'stop'     { push(@return, harobattle_stop($nick, $dest, $args)); }
+		case 'taunt'    { push(@return, harobattle_add_taunt($nick, $dest, $args)); }
 		else            { push(@return, harobattle_help($nick, $dest, $sub_func)); }
 	}
 
@@ -102,14 +104,24 @@ sub harobattle_uuid_change {
 				push(@return, linemaker("$name est maintenant enregistré, [color=red]attention, il change de compte[/c], et ce qu'il avait parié à ce tour ci est retiré du pot."));
 			}
 			delete($_bets->{$uuid});
+			better_delete($uuid);
 		}
 	}
 	else {
 		$_bets->{$uuid_new} = $_bets->{$uuid};
 		delete($_bets->{$uuid});
+		better_delete($uuid);
 	}
 
 	return @return;
+}
+
+sub better_delete {
+	my ($uuid) = @_;
+
+	my $sth = $_dbh->prepare("DELETE FROM $_tbl_betters WHERE uuid LIKE ?");
+
+	return $sth->execute($uuid);
 }
 
 sub harobattle_original {
@@ -353,6 +365,25 @@ sub harobattle_stop {
 	return @return;
 }
 
+sub harobattle_add_taunt {
+	my ($nick, $dest, $args) = @_;
+	my @return;
+
+	if ($nick !~ /GentilBoulet.*/ && $nick !~ /Anzu.*/) {
+		push(@return, linemaker("Utilisateur non autorisé"));
+		return @return;
+	}
+
+	my $sth = $_dbh->prepare("INSERT INTO $_tbl_taunts (id_haro, win, type_taunt, taunt) VALUES (?, ?, ?, ?)");
+
+	$args =~ m/^([0-9])\s+([01])\s+(first|reload|victoly)\s+(.*)$/;
+
+	$sth->execute($1, $2, $3, $4);
+
+	push(@return, linemaker("Taunt enregistré \o/"));
+	return @return;
+}
+
 sub get_betters {
 	my $sth = $_dbh->prepare("SELECT * FROM $_tbl_betters");
 	my ($uuid, $wealth, $colour);
@@ -368,7 +399,6 @@ sub get_betters {
 	}
 }
  
-
 sub set_betters {
 	my $sth = $_dbh->prepare("INSERT OR REPLACE INTO $_tbl_betters (uuid, wealth, colour) VALUES (?, ?, ?)");
 
@@ -381,7 +411,7 @@ sub get {
 	my ($key) = @_;
 	my $value;
 
-	my $sth = $_dbh->prepare("SELECT value FROM $_tbl_data WHERE key=?");
+	my $sth = $_dbh->prepare("SELECT value FROM $_tbl_data WHERE key LIKE ?");
 	$sth->bind_columns(\$value);
 	$sth->execute($key);
 	$sth->fetch();
@@ -392,34 +422,34 @@ sub get {
 sub set {
 	my ($key, $value) = @_;
 
-	my $sth = $_dbh->prepare("UPDATE $_tbl_data SET value=? WHERE key=?"); 
+	my $sth = $_dbh->prepare("UPDATE $_tbl_data SET value=? WHERE key LIKE ?"); 
 	$sth->execute($value, $key);
 }
 
 sub get_taunt {
 	my ($haro1, $haro2, $win, $type) = @_;
-	my ($taunt, $nb, $name);
+	my ($taunt, $nb, $name1, $name2);
 
-	Giraf::Core::debug("get taunt $win / $type");
+	Giraf::Core::debug("get_taunt $type");
 
 	my $sth=$_dbh->prepare("SELECT COUNT(*) FROM $_tbl_taunts WHERE id_haro=? AND win=? AND type_taunt LIKE ?");
 	$sth->bind_columns(\$nb);
 	$sth->execute($haro1->{id}, $win, $type);
 	$sth->fetch();
 
-	Giraf::Core::debug("get taunt $nb");
-
 	$sth = $_dbh->prepare("SELECT taunt FROM $_tbl_taunts WHERE id_haro=? AND win=? AND type_taunt LIKE ? LIMIT ?,1");
 	$sth->bind_columns(\$taunt);
-	$sth->execute($haro1->{id}, $win, $type, 0); # int(rand($nb)));
+	$sth->execute($haro1->{id}, $win, $type, int(rand($nb)));
 	$sth->fetch();
 
-	Giraf::Core::debug("get taunt $taunt");
+	$name1 = nom($haro1);
+	$name2 = nom($haro2);
+	$taunt =~ s/SAY/$name1 : /;
+	$taunt =~ s/ACTION/\* $name1/;
+	$taunt =~ s/THISHARO/$name1/;
+	$taunt =~ s/OTHERHARO/$name2/;
 
-	$name = nom($haro2);
-	$taunt =~ s/OTHERHARO/$name/;
-
-	return nom($haro1)." : $taunt";
+	return $taunt;
 }
 
 sub linemaker {
@@ -861,7 +891,7 @@ sub hb_round {
 sub hb_atwi {
 	my ($kernel, $heap, $dest) = @_[ KERNEL, HEAP, ARG0 ];
 	my @return;
-	my $line;
+	my ($line, $somme);
 
 	Giraf::Core::debug("hb_atwi");
 
@@ -884,7 +914,9 @@ sub hb_atwi {
 		else {
 			$line .= " pour le moment.";
 		}
-		
+
+		push(@return, linemaker(get_taunt($_champion, $_challenger, 1, "victoly")));
+	
 		push(@return, linemaker($line));
 
 		push(@return, bet_results($_champion->{id}));
@@ -902,6 +934,8 @@ sub hb_atwi {
 		else {
 			$line .= ".";
 		}
+
+		push(@return, linemaker(get_taunt($_challenger, $_champion, 1, "victoly")));
 
 		push(@return, linemaker($line));
 
@@ -924,12 +958,18 @@ sub hb_atwi {
 	set("reward", $_reward);
 	set_betters();
 
+	$somme = $_pot;
+
+	foreach my $i (keys %$_bets) {
+		$somme += $_bets->{$i}->{wealth};
+	}
+
 	if($_continuer) {
-		push(@return, linemaker("Prochain match dans 1 minute."));
+		push(@return, linemaker("Prochain match dans 1 minute. [Le monde a $somme]"));
 		$kernel->delay_set('harobattle_original', 60, $dest);
 	}
 	else {
-		push(@return, linemaker("C'est tout pour le moment, rendez-vous très bientôt."));
+		push(@return, linemaker("C'est tout pour le moment, rendez-vous très bientôt. [Le monde a $somme]"));
 		$_match_en_cours = 0;
 	}
 
