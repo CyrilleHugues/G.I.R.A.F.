@@ -1,10 +1,22 @@
 ﻿BEGIN TRANSACTION;
+
+-- Dropping the tables to begin in a clean state
+
 DROP TABLE IF EXISTS mod_harobattle_haros;
 DROP TABLE IF EXISTS mod_harobattle_betters;
 DROP TABLE IF EXISTS mod_harobattle_data;
+DROP TABLE IF EXISTS mod_harobattle_taunts;
+
+-- Creating the tables
+
 CREATE TABLE mod_harobattle_haros (id INTEGER PRIMARY KEY, name TEXT UNIQUE, colour TEXT, precision INTEGER, dodge INTEGER, charisma INTEGER, armor INTEGER, hit_points INTEGER, weapon TEXT, power INTEGER, rouds_per_round INTEGER, time_to_reload INTEGER, rounds INTEGER);
 CREATE TABLE mod_harobattle_betters (uuid TEXT PRIMARY KEY, wealth INTEGER, colour TEXT);
 CREATE TABLE mod_harobattle_data (key TEXT PRIMARY KEY, value TEXT);
+CREATE TABLE mod_harobattle_taunts (id_haro INTEGER, win INTEGER, type_taunt TEXT, taunt TEXT);
+
+-- Inserting the data for the haros, inserting more will make more haros
+
+--                                     id  name      colour    pr  do ch  ar hp  weapon                 po  nr tr ro
 INSERT INTO mod_harobattle_haros VALUES(1, 'vert',   'green',  10, 5, 10, 3,  1, 'Fusil de sniper',     20, 1, 2,  4);
 INSERT INTO mod_harobattle_haros VALUES(2, 'bleu',   'blue',    6, 2,  4, 5, 10, 'L4z0r PewPew',        16, 3, 0, 15);
 INSERT INTO mod_harobattle_haros VALUES(3, 'rose',   'pink',    8, 2,  7, 3, 15, 'Desert Eagle',        14, 1, 0, 10);
@@ -14,8 +26,55 @@ INSERT INTO mod_harobattle_haros VALUES(6, 'violet', 'purple',  9, 1,  5, 3, 20,
 INSERT INTO mod_harobattle_haros VALUES(7, 'orange', 'orange',  6, 4,  2, 5, 14, 'M16',                 14, 2, 1, 30);
 INSERT INTO mod_harobattle_haros VALUES(8, 'cyan',   'teal',    7, 1,  1, 4, 16, 'MG42',                14, 3, 2, 30);
 
+-- Inserting the data for the very first match, the champion is arbitrary and is supposed to have managed one victory
+
+--                                     key                      val
 INSERT INTO mod_harobattle_data VALUES('champion_id',           '1');
 INSERT INTO mod_harobattle_data VALUES('consecutive_victories', '1');
 INSERT INTO mod_harobattle_data VALUES('pot',                   '0');
 INSERT INTO mod_harobattle_data VALUES('reward',                '1');
+
+-- Inserting the taunts
+
+--                                      ha wi type       taunt
+INSERT INTO mod_harobattle_taunts VALUES(1, 1, "first",   "Tiens toi tranquille OTHERHARO, ça va pas durer longtemps !");
+INSERT INTO mod_harobattle_taunts VALUES(1, 0, "first",   "AAAAAAAAAH, j'ai peur... :(");
+INSERT INTO mod_harobattle_taunts VALUES(1, 1, "reload",  "Ha, la prochaine fois, tu est cuit, OTHERHARO");
+INSERT INTO mod_harobattle_taunts VALUES(1, 0, "reload",  "AAAAAAAAAH, j'ai peur... :(");
+INSERT INTO mod_harobattle_taunts VALUES(1, 1, "victoly", "Je t'ai eu, espèce de n[c=red]00[/c]b.");
+INSERT INTO mod_harobattle_taunts VALUES(2, 1, "first",   "Tiens toi tranquille OTHERHARO, ça va pas durer longtemps !");
+INSERT INTO mod_harobattle_taunts VALUES(2, 0, "first",   "AAAAAAAAAH, j'ai peur... :(");
+INSERT INTO mod_harobattle_taunts VALUES(2, 1, "reload",  "Ha, la prochaine fois, tu est cuit, OTHERHARO");
+INSERT INTO mod_harobattle_taunts VALUES(2, 0, "reload",  "AAAAAAAAAH, j'ai peur... :(");
+INSERT INTO mod_harobattle_taunts VALUES(2, 1, "victoly", "Je t'ai eu, espèce de n[c=red]00[/c]b.");
+INSERT INTO mod_harobattle_taunts VALUES(3, 1, "first",   "Tiens toi tranquille OTHERHARO, ça va pas durer longtemps !");
+INSERT INTO mod_harobattle_taunts VALUES(3, 0, "first",   "AAAAAAAAAH, j'ai peur... :(");
+INSERT INTO mod_harobattle_taunts VALUES(3, 1, "reload",  "Ha, la prochaine fois, tu est cuit, OTHERHARO");
+INSERT INTO mod_harobattle_taunts VALUES(3, 0, "reload",  "AAAAAAAAAH, j'ai peur... :(");
+INSERT INTO mod_harobattle_taunts VALUES(3, 1, "victoly", "Je t'ai eu, espèce de n[c=red]00[/c]b.");
+INSERT INTO mod_harobattle_taunts VALUES(4, 1, "first",   "Tiens toi tranquille OTHERHARO, ça va pas durer longtemps !");
+INSERT INTO mod_harobattle_taunts VALUES(4, 0, "first",   "AAAAAAAAAH, j'ai peur... :(");
+INSERT INTO mod_harobattle_taunts VALUES(4, 1, "reload",  "Ha, la prochaine fois, tu est cuit, OTHERHARO");
+INSERT INTO mod_harobattle_taunts VALUES(4, 0, "reload",  "AAAAAAAAAH, j'ai peur... :(");
+INSERT INTO mod_harobattle_taunts VALUES(4, 1, "victoly", "Je t'ai eu, espèce de n[c=red]00[/c]b.");
+INSERT INTO mod_harobattle_taunts VALUES(5, 1, "first",   "Tiens toi tranquille OTHERHARO, ça va pas durer longtemps !");
+INSERT INTO mod_harobattle_taunts VALUES(5, 0, "first",   "AAAAAAAAAH, j'ai peur... :(");
+INSERT INTO mod_harobattle_taunts VALUES(5, 1, "reload",  "Ha, la prochaine fois, tu est cuit, OTHERHARO");
+INSERT INTO mod_harobattle_taunts VALUES(5, 0, "reload",  "AAAAAAAAAH, j'ai peur... :(");
+INSERT INTO mod_harobattle_taunts VALUES(5, 1, "victoly", "Je t'ai eu, espèce de n[c=red]00[/c]b.");
+INSERT INTO mod_harobattle_taunts VALUES(6, 1, "first",   "Tiens toi tranquille OTHERHARO, ça va pas durer longtemps !");
+INSERT INTO mod_harobattle_taunts VALUES(6, 0, "first",   "AAAAAAAAAH, j'ai peur... :(");
+INSERT INTO mod_harobattle_taunts VALUES(6, 1, "reload",  "Ha, la prochaine fois, tu est cuit, OTHERHARO");
+INSERT INTO mod_harobattle_taunts VALUES(6, 0, "reload",  "AAAAAAAAAH, j'ai peur... :(");
+INSERT INTO mod_harobattle_taunts VALUES(6, 1, "victoly", "Je t'ai eu, espèce de n[c=red]00[/c]b.");
+INSERT INTO mod_harobattle_taunts VALUES(7, 1, "first",   "Tiens toi tranquille OTHERHARO, ça va pas durer longtemps !");
+INSERT INTO mod_harobattle_taunts VALUES(7, 0, "first",   "AAAAAAAAAH, j'ai peur... :(");
+INSERT INTO mod_harobattle_taunts VALUES(7, 1, "reload",  "Ha, la prochaine fois, tu est cuit, OTHERHARO");
+INSERT INTO mod_harobattle_taunts VALUES(7, 0, "reload",  "AAAAAAAAAH, j'ai peur... :(");
+INSERT INTO mod_harobattle_taunts VALUES(7, 1, "victoly", "Je t'ai eu, espèce de n[c=red]00[/c]b.");
+INSERT INTO mod_harobattle_taunts VALUES(8, 1, "first",   "Tiens toi tranquille OTHERHARO, ça va pas durer longtemps !");
+INSERT INTO mod_harobattle_taunts VALUES(8, 0, "first",   "AAAAAAAAAH, j'ai peur... :(");
+INSERT INTO mod_harobattle_taunts VALUES(8, 1, "reload",  "Ha, la prochaine fois, tu est cuit, OTHERHARO");
+INSERT INTO mod_harobattle_taunts VALUES(8, 0, "reload",  "AAAAAAAAAH, j'ai peur... :(");
+INSERT INTO mod_harobattle_taunts VALUES(8, 1, "victoly", "Je t'ai eu, espèce de n[c=red]00[/c]b.");
 COMMIT;

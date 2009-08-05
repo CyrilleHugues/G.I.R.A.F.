@@ -34,6 +34,7 @@ my $_consecutive_victories = 0;
 my $_tbl_haro = "mod_harobattle_haros"; # Haros table, contains everything there is to know about the haros
 my $_tbl_betters = "mod_harobattle_betters"; # Betters table, contains wealth and uuid of the betters
 my $_tbl_data = "mod_harobattle_data"; # Data table, contains the current champion id and his consecutive victories
+my $_tbl_taunts = "mod_harobattle_taunts"; # Taunts table, contains the different taunts haro can utter
 my $_dbh = Giraf::Admin::get_dbh(); # GIRAF database
 
 sub init {
@@ -70,6 +71,7 @@ sub harobattle_main {
 	switch ($sub_func) {
 		case 'original' { push(@return, harobattle_original($nick, $dest, $args)); }
 		case 'bet'      { push(@return, harobattle_bet($nick, $dest, $args)); }
+		case 'status'   { push(@return, harobattle_bet($nick, $dest, "status")); }
 		case 'root'     { push(@return, harobattle_root($nick, $dest, $args)); }
 		case 'stop'     { push(@return, harobattle_stop($nick, $dest, $args)); }
 		else            { push(@return, harobattle_help($nick, $dest, $sub_func)); }
@@ -153,8 +155,14 @@ sub harobattle_bet {
 		$name = Giraf::User::getNickFromUUID($uuid);
 
 		@tmp = split(/\s+/, $args);
-		$command = $tmp[0];
-		$bet = $tmp[1];
+		if ($tmp[0] !~ /^[0-9]*[1-9][0-9]*$/) {
+			$command = $tmp[0];
+			$bet = $tmp[1];
+		}
+		else {
+			$bet = $tmp[0];
+			$command = $tmp[1];
+		}
 
 		if ($uuid && !$_bets->{$uuid}) {
 			push(@return, linemaker("Un compte pour $name vient d'être créé. La banque vous offre 20."));
@@ -162,6 +170,9 @@ sub harobattle_bet {
 			$_bets->{$uuid}->{result} = -1;
 			$_bets->{$uuid}->{colour} = "";
 		}
+
+			
+			
 
 		$name = "[c=".$_bets->{$uuid}->{colour}."]$name\[/c]";
 	}
@@ -385,6 +396,32 @@ sub set {
 	$sth->execute($value, $key);
 }
 
+sub get_taunt {
+	my ($haro1, $haro2, $win, $type) = @_;
+	my ($taunt, $nb, $name);
+
+	Giraf::Core::debug("get taunt $win / $type");
+
+	my $sth=$_dbh->prepare("SELECT COUNT(*) FROM $_tbl_taunts WHERE id_haro=? AND win=? AND type_taunt LIKE ?");
+	$sth->bind_columns(\$nb);
+	$sth->execute($haro1->{id}, $win, $type);
+	$sth->fetch();
+
+	Giraf::Core::debug("get taunt $nb");
+
+	$sth = $_dbh->prepare("SELECT taunt FROM $_tbl_taunts WHERE id_haro=? AND win=? AND type_taunt LIKE ? LIMIT ?,1");
+	$sth->bind_columns(\$taunt);
+	$sth->execute($haro1->{id}, $win, $type, 0); # int(rand($nb)));
+	$sth->fetch();
+
+	Giraf::Core::debug("get taunt $taunt");
+
+	$name = nom($haro2);
+	$taunt =~ s/OTHERHARO/$name/;
+
+	return nom($haro1)." : $taunt";
+}
+
 sub linemaker {
 	my ($texte) = @_;
 
@@ -476,16 +513,15 @@ sub chargement {
 sub initiative {
 	# renvoie nombre de coups d'avance du haro champion
 
-	my $jet1 = taunt($_champion);
-	my $jet2 = taunt($_challenger);
+	my $jet1 = taunt($_champion, $_challenger, "first");
+	my $jet2 = taunt($_challenger, $_champion, "first");
 
 	return $jet1 - $jet2;
 }
 
 sub taunt {
-	my ($haro) = @_;
+	my ($haro1, $haro2, $type) = @_;
 	my @return;
-	my ($texte, $taunt);
 
 	# prends en parametre un haro
 	# envoie un message de taunt approprie sur la sortie, et renvoie le resultat du jet
@@ -495,16 +531,16 @@ sub taunt {
 	if ($de == 12) {
 		# Envoie un message de taunt qui faile violemment
 
-		push(@return, linemaker(nom($haro)." : MAMAN ! J'ai PEUR !!!"));
+		push(@return, linemaker(get_taunt($haro1, $haro2, 0, $type)));
 		Giraf::Core::emit(@return);
 
-		$haro->{charisme_fail}++;
+		$haro1->{charisme_fail}++;
 		return -1;
 	}
-	elsif ($de > $haro->{charisme}) {
+	elsif ($de > $haro1->{charisme}) {
 		# Envoie un mauvais message de taunt (ou rien)
 
-		push(@return, linemaker(nom($haro)." : ..."));
+		push(@return, linemaker(nom($haro1)." : ..."));
 		Giraf::Core::emit(@return);
 
 		return 0;
@@ -512,7 +548,7 @@ sub taunt {
 	else {
 		# Envoie un message de taunt qui win
 
-		push(@return, linemaker(nom($haro)." : Tiens toi tranquille, ça va pas durer longtemps !"));
+		push(@return, linemaker(get_taunt($haro1, $haro2, 1, $type)));
 		Giraf::Core::emit(@return);
 
 		return 1;
@@ -587,9 +623,14 @@ sub attaque {
 	# Une attaque
 
 	if ((($i - 1) % ($haro1->{recharge} + 1)) || (!$haro1->{munitions})) {
-		if(taunt($haro1) == 1) {
+		if(taunt($haro1, $haro2, "reload") == 1) {
 			$haro2->{precision_fail}++;
 			push(@return, linemaker(nom($haro2)." semble destabilisé."));
+		}
+		if (!$haro1->{munitions}) {
+			push(@return, linemaker(nom($haro1)." n'a plus de munitions."));
+		}
+		else {
 			push(@return, linemaker(nom($haro1)." recharge."));
 		}
 	}
